@@ -8,7 +8,8 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <UnityVersion>2022.3.60f1</UnityVersion>
+    <UnityVersion>2022.3.62f3</UnityVersion>
+    <UnityProjectPath>../../../</UnityProjectPath>
   </PropertyGroup>
 
   <ItemGroup>

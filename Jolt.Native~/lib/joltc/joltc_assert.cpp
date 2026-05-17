@@ -26,10 +26,13 @@ __pragma(warning(push, 0))
 #include "Jolt/Physics/Body/BodyCreationSettings.h"
 #include "Jolt/Physics/Body/BodyActivationListener.h"
 #include "Jolt/Physics/Body/AllowedDOFs.h"
+#include <Jolt/Physics/SoftBody/SoftBodySharedSettings.h>
+#include <Jolt/Physics/SoftBody/SoftBodyCreationSettings.h>
 #include "Jolt/Physics/Constraints/SixDOFConstraint.h"
 #include "Jolt/Physics/Character/CharacterBase.h"
 #include "Jolt/Physics/Character/CharacterID.h"
 #include "Jolt/Physics/Collision/Shape/MeshShape.h"
+#include "Jolt/Physics/Vehicle/VehicleTransmission.h"
 
 #ifdef JPH_DEBUG_RENDERER
 #include <Jolt/Renderer/DebugRendererSimple.h>
@@ -43,6 +46,9 @@ __pragma(warning(pop))
     static_assert(sizeof(type0) == sizeof(type1)); \
     static_assert(alignof(type0) == alignof(type1))
 
+// Ensure that we use 32-bit object layers
+static_assert(sizeof(JPH::ObjectLayer) == 4);
+
 static_assert(sizeof(JPH::ObjectLayer) == sizeof(JPH_ObjectLayer));
 static_assert(sizeof(JPH::BroadPhaseLayer) == sizeof(JPH_BroadPhaseLayer));
 static_assert(sizeof(JPH::BodyID) == sizeof(JPH_BodyID));
@@ -50,6 +56,11 @@ static_assert(sizeof(JPH::SubShapeID) == sizeof(JPH_SubShapeID));
 static_assert(sizeof(JPH::CharacterID) == sizeof(JPH_CharacterID));
 static_assert(sizeof(JPH::CollisionGroup::GroupID) == sizeof(JPH_CollisionGroupID));
 static_assert(sizeof(JPH::CollisionGroup::SubGroupID) == sizeof(JPH_CollisionSubGroupID));
+
+static_assert(JPH_INVALID_COLLISION_GROUP_ID == (int)JPH::CollisionGroup::cInvalidGroup);
+static_assert(JPH_INVALID_COLLISION_SUBGROUP_ID == (int)JPH::CollisionGroup::cInvalidSubGroup);
+
+static_assert(sizeof(JPH::Mat44) == sizeof(JPH_Mat4));
 
 // EPhysicsUpdateError
 static_assert(sizeof(JPH_PhysicsUpdateError) == sizeof(JPH::EPhysicsUpdateError));
@@ -206,6 +217,25 @@ static_assert(JPH_CollectFacesMode_NoFaces == (int)JPH::ECollectFacesMode::NoFac
 static_assert(sizeof(JPH::SubShapeIDPair) == sizeof(JPH_SubShapeIDPair));
 static_assert(alignof(JPH::SubShapeIDPair) == alignof(JPH_SubShapeIDPair));
 
+// EBendType
+static_assert((int)JPH_SoftBodyBendType_None == (int)JPH::SoftBodySharedSettings::EBendType::None);
+static_assert((int)JPH_SoftBodyBendType_Distance == (int)JPH::SoftBodySharedSettings::EBendType::Distance);
+static_assert((int)JPH_SoftBodyBendType_Dihedral == (int)JPH::SoftBodySharedSettings::EBendType::Dihedral);
+
+
+#if defined(_M_X64) || defined(__x86_64__) || defined(__aarch64__)
+    // 64-bit Platform Sizes
+    static_assert(
+        sizeof(JPH::BodyCreationSettings) == 288 || 
+        sizeof(JPH::BodyCreationSettings) == 256
+    );
+    static_assert(
+        sizeof(JPH::SoftBodyCreationSettings) == 160 || 
+        sizeof(JPH::SoftBodyCreationSettings) == 144 || 
+        sizeof(JPH::SoftBodyCreationSettings) == 128
+    );
+#endif
+
 #ifdef JPH_DEBUG_RENDERER
 
 // ESoftBodyConstraintColor
@@ -232,5 +262,10 @@ static_assert(JPH_DebugRenderer_DrawMode_Wireframe == (int)JPH::DebugRenderer::E
 // MeshShapeSettings::EBuildQuality
 static_assert(JPH_Mesh_Shape_BuildQuality_FavorRuntimePerformance == (int)JPH::MeshShapeSettings::EBuildQuality::FavorRuntimePerformance);
 static_assert(JPH_Mesh_Shape_BuildQuality_FavorBuildSpeed == (int)JPH::MeshShapeSettings::EBuildQuality::FavorBuildSpeed);
+
+// MeshShapeSettings::EBuildQuality
+static_assert(JPH_TransmissionMode_Auto == (int)JPH::ETransmissionMode::Auto);
+static_assert(JPH_TransmissionMode_Manual == (int)JPH::ETransmissionMode::Manual);
+
 
 #endif

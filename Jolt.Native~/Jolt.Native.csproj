@@ -19,7 +19,7 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
-        <PackageReference Include="Vezel.Zig.Toolsets.osx-x64" Version="0.11.0.1" Condition="'$(UseMacOSToolset)' == 'true'">
+        <PackageReference Include="Vezel.Zig.Toolsets.osx-arm64" Version="0.11.0.1" Condition="'$(UseMacOSToolset)' == 'true'">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
@@ -51,7 +51,7 @@
 
     <Target Name="Compile Jolt" AfterTargets="Build" Condition="'$(ZigExePath)' != ''">
         <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir windows-x64 -Dtarget=x86_64-windows -Doptimize=$(NativeOptimize)"/>
-        <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir macos-x64   -Dtarget=x86_64-macos   -Doptimize=$(NativeOptimize)"/>
+        <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir macos-arm64 -Dtarget=aarch64-macos   -Doptimize=$(NativeOptimize)"/>
         <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir linux-x64   -Dtarget=x86_64-linux   -Doptimize=$(NativeOptimize)"/>
     </Target>
 
@@ -60,7 +60,8 @@
     </Target>
 
     <Target Name="Generate Jolt Bindings" AfterTargets="Build">
-        <Exec Command="clangsharppinvokegenerator --include-directory &quot;$(ZigToolsetPath)lib\include&quot; -f lib\joltc\joltc.h -n Jolt -m UnsafeBindings -l joltc -o ..\Jolt\Bindings\UnsafeBindings.g.cs @clangsharp.rsp"/>
+        <Exec WorkingDirectory="$(MSBuildProjectDirectory)"
+              Command="dotnet tool run clangsharppinvokegenerator --include-directory &quot;$(ZigToolsetPath)lib/include&quot; -f lib/joltc/joltc.h -n Jolt -m UnsafeBindings -l joltc -o ../Jolt/Bindings/UnsafeBindings.g.cs @clangsharp.rsp"/>
     </Target>
 
 </Project>

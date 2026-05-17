@@ -56,7 +56,9 @@ namespace Jolt.Native
             }
             else if (IsMacOS())
             {
-                libname = "macos-x64\\libjoltc.dylib";
+                libname = RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+                    ? "macos-arm64\\libjoltc.dylib"
+                    : "macos-x64\\libjoltc.dylib";
             }
             else
             {
