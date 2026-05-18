@@ -46,9 +46,7 @@ __pragma(warning(pop))
     static_assert(sizeof(type0) == sizeof(type1)); \
     static_assert(alignof(type0) == alignof(type1))
 
-// Ensure that we use 32-bit object layers
-static_assert(sizeof(JPH::ObjectLayer) == 4);
-
+// ObjectLayer width must match JPH_OBJECT_LAYER_BITS in build.zig (here: 32 -> uint32)
 static_assert(sizeof(JPH::ObjectLayer) == sizeof(JPH_ObjectLayer));
 static_assert(sizeof(JPH::BroadPhaseLayer) == sizeof(JPH_BroadPhaseLayer));
 static_assert(sizeof(JPH::BodyID) == sizeof(JPH_BodyID));

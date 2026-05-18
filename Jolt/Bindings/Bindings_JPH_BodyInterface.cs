@@ -330,7 +330,7 @@ namespace Jolt
             AssertInitialized();
 
             rmatrix4x4 result;
-            UnsafeBindings.JPH_BodyInterface_GetWorldTransform(@interface, bodyID, &result);
+            UnsafeBindings.JPH_BodyInterface_GetWorldTransform(@interface, bodyID, (JPH_Mat4*)&result);
             return result;
         }
 
@@ -339,7 +339,7 @@ namespace Jolt
             AssertInitialized();
 
             rmatrix4x4 result;
-            UnsafeBindings.JPH_BodyInterface_GetCenterOfMassTransform(@interface, bodyID, &result);
+            UnsafeBindings.JPH_BodyInterface_GetCenterOfMassTransform(@interface, bodyID, (JPH_Mat4*)&result);
             return result;
         }
 
@@ -485,7 +485,7 @@ namespace Jolt
             AssertInitialized();
 
             float4x4 result;
-            UnsafeBindings.JPH_BodyInterface_GetInverseInertia(@interface, bodyID, &result);
+            UnsafeBindings.JPH_BodyInterface_GetInverseInertia(@interface, bodyID, (JPH_Mat4*)&result);
             return result;
         }
 

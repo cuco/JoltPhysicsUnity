@@ -17,14 +17,14 @@ namespace Jolt
         public static float4x4 JPH_TwoBodyConstraint_GetConstraintToBody1Matrix(NativeHandle<JPH_TwoBodyConstraint> constraint)
         {
             float4x4 result;
-            UnsafeBindings.JPH_TwoBodyConstraint_GetConstraintToBody1Matrix(constraint, &result);
+            UnsafeBindings.JPH_TwoBodyConstraint_GetConstraintToBody1Matrix(constraint, (JPH_Mat4*)&result);
             return result;
         }
 
         public static float4x4 JPH_TwoBodyConstraint_GetConstraintToBody2Matrix(NativeHandle<JPH_TwoBodyConstraint> constraint) 
         {
             float4x4 result;
-            UnsafeBindings.JPH_TwoBodyConstraint_GetConstraintToBody2Matrix(constraint, &result);
+            UnsafeBindings.JPH_TwoBodyConstraint_GetConstraintToBody2Matrix(constraint, (JPH_Mat4*)&result);
             return result;
         }
     }

@@ -3,35 +3,45 @@ using System.Runtime.InteropServices;
 
 namespace Jolt
 {
+    /// <summary>
+    /// Object collision layer index or mask-packed value, matching <c>JPH_ObjectLayer</c> / Jolt <c>ObjectLayer</c>.
+    /// Width is fixed by native build: this package compiles Jolt with <c>JPH_OBJECT_LAYER_BITS=32</c> (see <c>Jolt.Native~/build.zig</c>).
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public readonly struct ObjectLayer : IEquatable<ObjectLayer>
     {
-        // A distinct type wrapper around ushort (or optionally uint, but unsupported). See https://github.com/jrouwe/JoltPhysics/blob/master/Jolt/Physics/Collision/ObjectLayer.h
+        /// <summary>
+        /// Bit width of <see cref="Value"/>; must match Jolt <c>JPH_OBJECT_LAYER_BITS</c> for the native library you load.
+        /// </summary>
+        public const uint ObjectLayerBits = 32;
 
         /// <summary>
-        /// Number of bits in an object layer.
+        /// Jolt <c>cObjectLayerInvalid</c>: all bits set in the object-layer type.
         /// </summary>
-        public const uint ObjectLayerBits = 16; // TODO can be 32 with compiler flag
+        public static readonly ObjectLayer Invalid = new ObjectLayer(uint.MaxValue);
 
         /// <summary>
-        /// The invalid ObjectLayer (0).
+        /// The layer value (table index, or mask-encoded value for mask filters).
         /// </summary>
-        public static readonly ObjectLayer Invalid = 0;
+        public readonly uint Value;
 
-        /// <summary>
-        /// The layer value.
-        /// </summary>
-        public readonly ushort Value;
-
-        public ObjectLayer(ushort value)
+        public ObjectLayer(uint value)
         {
             Value = value;
         }
 
         /// <summary>
-        /// Implicit cast from ushort. The inverse is not available to avoid confusion.
+        /// Widening conversion from <see cref="ushort"/> (e.g. legacy layer indices).
         /// </summary>
         public static implicit operator ObjectLayer(ushort layer)
+        {
+            return new ObjectLayer(layer);
+        }
+
+        /// <summary>
+        /// Identity conversion.
+        /// </summary>
+        public static implicit operator ObjectLayer(uint layer)
         {
             return new ObjectLayer(layer);
         }
@@ -50,7 +60,7 @@ namespace Jolt
 
         public override int GetHashCode()
         {
-            return Value.GetHashCode();
+            return (int)Value;
         }
 
         public static bool operator ==(ObjectLayer lhs, ObjectLayer rhs)

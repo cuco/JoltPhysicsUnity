@@ -37,6 +37,10 @@
         <NativeOptimize>ReleaseFast</NativeOptimize>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <ZigBuildOptions>-Denable_cross_platform_determinism=true</ZigBuildOptions>
+    </PropertyGroup>
+
     <ItemGroup>
         <Content Include="out\$(Configuration)\**\*.dll" />
         <Content Include="out\$(Configuration)\**\*.dylib" />
@@ -50,18 +54,19 @@
     </ItemGroup>
 
     <Target Name="Compile Jolt" AfterTargets="Build" Condition="'$(ZigExePath)' != ''">
-        <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir windows-x64 -Dtarget=x86_64-windows -Doptimize=$(NativeOptimize)"/>
-        <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir macos-arm64 -Dtarget=aarch64-macos   -Doptimize=$(NativeOptimize)"/>
-        <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir linux-x64   -Dtarget=x86_64-linux   -Doptimize=$(NativeOptimize)"/>
+        <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir windows-x64 -Dtarget=x86_64-windows -Doptimize=$(NativeOptimize) $(ZigBuildOptions)"/>
+        <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir macos-arm64 -Dtarget=aarch64-macos   -Doptimize=$(NativeOptimize) $(ZigBuildOptions)"/>
+        <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir linux-x64   -Dtarget=x86_64-linux   -Doptimize=$(NativeOptimize) $(ZigBuildOptions)"/>
     </Target>
 
-    <Target Name="Export Jolt" AfterTargets="Compile Jolt">
-        <Copy SourceFiles="@(UnityExports)" DestinationFolder="..\Jolt.Native\$(Configuration)\%(RecursiveDir)" />
-    </Target>
-
-    <Target Name="Generate Jolt Bindings" AfterTargets="Build">
+    <!-- Bindings only need joltc.h; run after zig so a typical rebuild is compile → bindgen → copy. -->
+    <Target Name="Generate Jolt Bindings" AfterTargets="Compile Jolt">
         <Exec WorkingDirectory="$(MSBuildProjectDirectory)"
               Command="dotnet tool run clangsharppinvokegenerator --include-directory &quot;$(ZigToolsetPath)lib/include&quot; -f lib/joltc/joltc.h -n Jolt -m UnsafeBindings -l joltc -o ../Jolt/Bindings/UnsafeBindings.g.cs @clangsharp.rsp"/>
+    </Target>
+
+    <Target Name="Export Jolt" AfterTargets="Generate Jolt Bindings" Condition="'$(ZigExePath)' != ''">
+        <Copy SourceFiles="@(UnityExports)" DestinationFolder="..\Jolt.Native\$(Configuration)\%(RecursiveDir)" ContinueOnError="true" />
     </Target>
 
 </Project>

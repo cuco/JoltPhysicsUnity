@@ -8,7 +8,8 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <UnityVersion>2022.3.62f3</UnityVersion>
+    <!-- 与本机 Unity Hub 已安装版本一致，否则 Unity3D 包无法解析 UnityEngine.dll -->
+    <UnityVersion>2022.3.7f1c1</UnityVersion>
     <UnityProjectPath>../../../</UnityProjectPath>
   </PropertyGroup>
 

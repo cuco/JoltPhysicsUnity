@@ -9,22 +9,54 @@ const Options = struct {
     use_double_precision: bool = false,
 };
 
+/// Matches Jolt Build/CMakeLists.txt + Jolt.cmake when CROSS_PLATFORM_DETERMINISTIC is on.
+/// See Docs/Architecture.md "Cross platform determinism".
+fn deterministicFpFlags(target: std.Target) []const []const u8 {
+    // Zig always drives clang for C++; use clang flags (not MSVC /fp:...) on every OS.
+    const is_x86 = target.cpu.arch == .x86 or target.cpu.arch == .x86_64;
+    if (is_x86) {
+        return &.{ "-ffp-model=precise", "-ffp-contract=off", "-mfpmath=sse" };
+    }
+    return &.{ "-ffp-model=precise", "-ffp-contract=off" };
+}
+
+fn buildCompileFlags(allocator: std.mem.Allocator, options: Options, target: std.Target, optimize: std.builtin.OptimizeMode) ![]const []const u8 {
+    var list = std.ArrayList([]const u8).init(allocator);
+    errdefer list.deinit();
+
+    try list.appendSlice(&.{
+        "-g",
+        "-std=c++17",
+        "-fdeclspec",
+        "-DJPH_SHARED_LIBRARY_BUILD",
+        "-DJPH_OBJECT_LAYER_BITS=32",
+    });
+
+    if (options.use_double_precision) {
+        try list.append("-DJPH_DOUBLE_PRECISION");
+    }
+    if (options.enable_asserts or optimize == .Debug) {
+        try list.append("-DJPH_ENABLE_ASSERTS");
+    }
+    if (options.enable_debug_renderer) {
+        try list.append("-DJPH_DEBUG_RENDERER");
+    }
+    if (options.enable_cross_platform_determinism) {
+        try list.append("-DJPH_CROSS_PLATFORM_DETERMINISTIC");
+        try list.appendSlice(deterministicFpFlags(target));
+    }
+
+    return try list.toOwnedSlice();
+}
+
 pub fn compile(options: Options, b: *Build, lib: *Build.Step.Compile) void {
     lib.linkLibC();
     lib.linkLibCpp();
 
     lib.strip = lib.optimize != .Debug;
 
-    const flags= &.{
-       "-g",
-       "-std=c++17",
-       "-fdeclspec",
-       "-DJPH_SHARED_LIBRARY_BUILD",
-       if (options.use_double_precision) "-DJPH_DOUBLE_PRECISION" else "",
-       if (options.enable_asserts or lib.optimize == .Debug) "-DJPH_ENABLE_ASSERTS" else "",
-       if (options.enable_cross_platform_determinism) "-DJPH_CROSS_PLATFORM_DETERMINISTIC" else "",
-       if (options.enable_debug_renderer) "-DJPH_DEBUG_RENDERER" else "",
-    };
+    const flags = buildCompileFlags(b.allocator, options, lib.target.toTarget(), lib.optimize) catch @panic("OOM");
+    defer b.allocator.free(flags);
 
     // add joltc sources
 
@@ -48,7 +80,6 @@ pub fn compile(options: Options, b: *Build, lib: *Build.Step.Compile) void {
     });
 
     lib.addCSourceFiles(&.{
-        jolt_dir ++ "Jolt/RegisterTypes.cpp",
         jolt_dir ++ "Jolt/AABBTree/AABBTreeBuilder.cpp",
         jolt_dir ++ "Jolt/Core/Color.cpp",
         jolt_dir ++ "Jolt/Core/Factory.cpp",
@@ -77,13 +108,6 @@ pub fn compile(options: Options, b: *Build, lib: *Build.Step.Compile) void {
         jolt_dir ++ "Jolt/ObjectStream/ObjectStreamTextOut.cpp",
         jolt_dir ++ "Jolt/ObjectStream/SerializableObject.cpp",
         jolt_dir ++ "Jolt/ObjectStream/TypeDeclarations.cpp",
-        jolt_dir ++ "Jolt/Physics/DeterminismLog.cpp",
-        jolt_dir ++ "Jolt/Physics/IslandBuilder.cpp",
-        jolt_dir ++ "Jolt/Physics/LargeIslandSplitter.cpp",
-        jolt_dir ++ "Jolt/Physics/PhysicsScene.cpp",
-        jolt_dir ++ "Jolt/Physics/PhysicsSystem.cpp",
-        jolt_dir ++ "Jolt/Physics/PhysicsUpdateContext.cpp",
-        jolt_dir ++ "Jolt/Physics/StateRecorderImpl.cpp",
         jolt_dir ++ "Jolt/Physics/Body/Body.cpp",
         jolt_dir ++ "Jolt/Physics/Body/BodyCreationSettings.cpp",
         jolt_dir ++ "Jolt/Physics/Body/BodyInterface.cpp",
@@ -93,6 +117,10 @@ pub fn compile(options: Options, b: *Build, lib: *Build.Step.Compile) void {
         jolt_dir ++ "Jolt/Physics/Character/Character.cpp",
         jolt_dir ++ "Jolt/Physics/Character/CharacterBase.cpp",
         jolt_dir ++ "Jolt/Physics/Character/CharacterVirtual.cpp",
+        jolt_dir ++ "Jolt/Physics/Collision/BroadPhase/BroadPhase.cpp",
+        jolt_dir ++ "Jolt/Physics/Collision/BroadPhase/BroadPhaseBruteForce.cpp",
+        jolt_dir ++ "Jolt/Physics/Collision/BroadPhase/BroadPhaseQuadTree.cpp",
+        jolt_dir ++ "Jolt/Physics/Collision/BroadPhase/QuadTree.cpp",
         jolt_dir ++ "Jolt/Physics/Collision/CastConvexVsTriangles.cpp",
         jolt_dir ++ "Jolt/Physics/Collision/CastSphereVsTriangles.cpp",
         jolt_dir ++ "Jolt/Physics/Collision/CollideConvexVsTriangles.cpp",
@@ -107,11 +135,6 @@ pub fn compile(options: Options, b: *Build, lib: *Build.Step.Compile) void {
         jolt_dir ++ "Jolt/Physics/Collision/NarrowPhaseStats.cpp",
         jolt_dir ++ "Jolt/Physics/Collision/PhysicsMaterial.cpp",
         jolt_dir ++ "Jolt/Physics/Collision/PhysicsMaterialSimple.cpp",
-        jolt_dir ++ "Jolt/Physics/Collision/TransformedShape.cpp",
-        jolt_dir ++ "Jolt/Physics/Collision/BroadPhase/BroadPhase.cpp",
-        jolt_dir ++ "Jolt/Physics/Collision/BroadPhase/BroadPhaseBruteForce.cpp",
-        jolt_dir ++ "Jolt/Physics/Collision/BroadPhase/BroadPhaseQuadTree.cpp",
-        jolt_dir ++ "Jolt/Physics/Collision/BroadPhase/QuadTree.cpp",
         jolt_dir ++ "Jolt/Physics/Collision/Shape/BoxShape.cpp",
         jolt_dir ++ "Jolt/Physics/Collision/Shape/CapsuleShape.cpp",
         jolt_dir ++ "Jolt/Physics/Collision/Shape/CompoundShape.cpp",
@@ -133,6 +156,7 @@ pub fn compile(options: Options, b: *Build, lib: *Build.Step.Compile) void {
         jolt_dir ++ "Jolt/Physics/Collision/Shape/TaperedCapsuleShape.cpp",
         jolt_dir ++ "Jolt/Physics/Collision/Shape/TaperedCylinderShape.cpp",
         jolt_dir ++ "Jolt/Physics/Collision/Shape/TriangleShape.cpp",
+        jolt_dir ++ "Jolt/Physics/Collision/TransformedShape.cpp",
         jolt_dir ++ "Jolt/Physics/Constraints/ConeConstraint.cpp",
         jolt_dir ++ "Jolt/Physics/Constraints/Constraint.cpp",
         jolt_dir ++ "Jolt/Physics/Constraints/ConstraintManager.cpp",
@@ -153,11 +177,18 @@ pub fn compile(options: Options, b: *Build, lib: *Build.Step.Compile) void {
         jolt_dir ++ "Jolt/Physics/Constraints/SpringSettings.cpp",
         jolt_dir ++ "Jolt/Physics/Constraints/SwingTwistConstraint.cpp",
         jolt_dir ++ "Jolt/Physics/Constraints/TwoBodyConstraint.cpp",
+        jolt_dir ++ "Jolt/Physics/DeterminismLog.cpp",
+        jolt_dir ++ "Jolt/Physics/IslandBuilder.cpp",
+        jolt_dir ++ "Jolt/Physics/LargeIslandSplitter.cpp",
+        jolt_dir ++ "Jolt/Physics/PhysicsScene.cpp",
+        jolt_dir ++ "Jolt/Physics/PhysicsSystem.cpp",
+        jolt_dir ++ "Jolt/Physics/PhysicsUpdateContext.cpp",
         jolt_dir ++ "Jolt/Physics/Ragdoll/Ragdoll.cpp",
         jolt_dir ++ "Jolt/Physics/SoftBody/SoftBodyCreationSettings.cpp",
         jolt_dir ++ "Jolt/Physics/SoftBody/SoftBodyMotionProperties.cpp",
         jolt_dir ++ "Jolt/Physics/SoftBody/SoftBodyShape.cpp",
         jolt_dir ++ "Jolt/Physics/SoftBody/SoftBodySharedSettings.cpp",
+        jolt_dir ++ "Jolt/Physics/StateRecorderImpl.cpp",
         jolt_dir ++ "Jolt/Physics/Vehicle/MotorcycleController.cpp",
         jolt_dir ++ "Jolt/Physics/Vehicle/TrackedVehicleController.cpp",
         jolt_dir ++ "Jolt/Physics/Vehicle/VehicleAntiRollBar.cpp",
@@ -170,6 +201,7 @@ pub fn compile(options: Options, b: *Build, lib: *Build.Step.Compile) void {
         jolt_dir ++ "Jolt/Physics/Vehicle/VehicleTransmission.cpp",
         jolt_dir ++ "Jolt/Physics/Vehicle/Wheel.cpp",
         jolt_dir ++ "Jolt/Physics/Vehicle/WheeledVehicleController.cpp",
+        jolt_dir ++ "Jolt/RegisterTypes.cpp",
         jolt_dir ++ "Jolt/Renderer/DebugRenderer.cpp",
         jolt_dir ++ "Jolt/Renderer/DebugRendererPlayback.cpp",
         jolt_dir ++ "Jolt/Renderer/DebugRendererRecorder.cpp",
@@ -194,7 +226,7 @@ pub fn build(b: *Build) void {
         .use_double_precision = b.option(bool, "use_double_precision", "use double precision") orelse false,
         .enable_asserts = b.option(bool, "enable_asserts", "enable asserts") orelse false,
         .enable_debug_renderer = b.option(bool, "enable_debug_renderer", "enable debug renderer") orelse false,
-        .enable_cross_platform_determinism = b.option(bool, "enable_cross_platform_determinism", "enable cross platform determinism") orelse false,
+        .enable_cross_platform_determinism = b.option(bool, "enable_cross_platform_determinism", "enable cross platform determinism") orelse true,
     };
 
     compile(options, b, b.addSharedLibrary(.{ .name = "joltc", .target = target, .optimize = optimize }));

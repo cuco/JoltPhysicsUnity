@@ -1,6 +1,6 @@
 ﻿# JoltPhysicsUnity
 
-This package provides __work-in-progress__ bindings for [Jolt Physics v5.3.0](https://github.com/jrouwe/JoltPhysics)
+This package provides __work-in-progress__ bindings for [Jolt Physics v5.5.0](https://github.com/jrouwe/JoltPhysics)
 specifically for Unity. It uses the Unity.Mathematics package for all numerics and Unity.Collections
 package for unmanaged collections.
 

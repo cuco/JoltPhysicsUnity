@@ -78,7 +78,7 @@ namespace Jolt
             AssertInitialized();
 
             AABox result;
-            UnsafeBindings.JPH_Shape_GetWorldSpaceBounds(shape, &centerOfMassTransform, &scale, (JPH_AABox*)&result);
+            UnsafeBindings.JPH_Shape_GetWorldSpaceBounds(shape, (JPH_Mat4*)&centerOfMassTransform, &scale, (JPH_AABox*)&result);
             return result;
         }
 

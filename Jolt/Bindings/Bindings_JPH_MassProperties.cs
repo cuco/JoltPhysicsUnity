@@ -12,7 +12,7 @@ namespace Jolt
             fixed (float4x4* rotationPtr = &rotation)
             fixed (float3* diagonalPtr = &diagonal)
             {
-                UnsafeBindings.JPH_MassProperties_DecomposePrincipalMomentsOfInertia((JPH_MassProperties*)propertiesPtr, rotationPtr, diagonalPtr);
+                UnsafeBindings.JPH_MassProperties_DecomposePrincipalMomentsOfInertia((JPH_MassProperties*)propertiesPtr, (JPH_Mat4*)rotationPtr, diagonalPtr);
             }
         }
 

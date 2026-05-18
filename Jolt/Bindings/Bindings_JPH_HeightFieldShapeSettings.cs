@@ -5,7 +5,7 @@ namespace Jolt
 {
     internal static unsafe partial class Bindings
     {
-        public static NativeHandle<JPH_HeightFieldShapeSettings> JPH_HeightFieldShapeSettings_Create(ReadOnlySpan<float> samples, ReadOnlySpan<float3> offset, ReadOnlySpan<float3> scale)
+        public static NativeHandle<JPH_HeightFieldShapeSettings> JPH_HeightFieldShapeSettings_Create(ReadOnlySpan<float> samples, ReadOnlySpan<float3> offset, ReadOnlySpan<float3> scale, ReadOnlySpan<byte> materialIndices = default)
         {
             AssertInitialized();
 
@@ -13,8 +13,17 @@ namespace Jolt
             fixed (float3* offsetPtr = offset)
             fixed (float3* scalePtr = scale)
             {
-                return CreateHandle(UnsafeBindings.JPH_HeightFieldShapeSettings_Create(samplesPtr, offsetPtr, scalePtr,
-                    (uint)samples.Length));
+                if (materialIndices.IsEmpty)
+                {
+                    return CreateHandle(UnsafeBindings.JPH_HeightFieldShapeSettings_Create(samplesPtr, offsetPtr, scalePtr,
+                        (uint)samples.Length, null));
+                }
+
+                fixed (byte* materialPtr = materialIndices)
+                {
+                    return CreateHandle(UnsafeBindings.JPH_HeightFieldShapeSettings_Create(samplesPtr, offsetPtr, scalePtr,
+                        (uint)samples.Length, materialPtr));
+                }
             }
         }
 

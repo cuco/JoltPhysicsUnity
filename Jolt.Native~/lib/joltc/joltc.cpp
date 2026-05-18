@@ -6218,7 +6218,7 @@ JPH_ObjectLayer JPH_BodyInterface_GetObjectLayer(JPH_BodyInterface* bodyInterfac
 
 void JPH_BodyInterface_SetObjectLayer(JPH_BodyInterface* bodyInterface, JPH_BodyID bodyId, JPH_ObjectLayer layer)
 {
-	AsBodyInterface(bodyInterface)->SetObjectLayer(JPH::BodyID(bodyId), layer);
+	AsBodyInterface(bodyInterface)->SetObjectLayer(JPH::BodyID(bodyId), static_cast<JPH::ObjectLayer>(layer));
 }
 
 void JPH_BodyInterface_GetWorldTransform(JPH_BodyInterface* bodyInterface, JPH_BodyID bodyId, JPH_RMat4* result)

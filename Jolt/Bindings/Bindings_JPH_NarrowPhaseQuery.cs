@@ -171,7 +171,7 @@ namespace Jolt
             AssertInitialized();
 
             return UnsafeBindings.JPH_NarrowPhaseQuery_CollideShape(
-                query, shape, &scale, &com, (JPH_CollideShapeSettings*)&settings, &offset,
+                query, shape, &scale, (JPH_Mat4*)&com, (JPH_CollideShapeSettings*)&settings, &offset,
                 callback: UnsafeNarrowPhaseQueryCallbacks.UnsafeCollidePointCallbackPointer,
                 userData: GetDelegatePointer(callback),
                 GetOptionalPointer(broadPhaseLayerFilter),
@@ -197,7 +197,7 @@ namespace Jolt
             AssertInitialized();
 
             return UnsafeBindings.JPH_NarrowPhaseQuery_CollideShape2(
-                query, shape, &scale, &com, (JPH_CollideShapeSettings*)&settings, &offset, collector,
+                query, shape, &scale, (JPH_Mat4*)&com, (JPH_CollideShapeSettings*)&settings, &offset, collector,
                 callback: UnsafeNarrowPhaseQueryCallbacks.UnsafeCollidePointCallbackPointer,
                 userData: GetDelegatePointer(callback),
                 GetOptionalPointer(broadPhaseLayerFilter),
@@ -223,7 +223,7 @@ namespace Jolt
             AssertInitialized();
 
             return UnsafeBindings.JPH_NarrowPhaseQuery_CastShape(
-                query, shape, &worldTransform, &direction, (JPH_ShapeCastSettings*)&settings, &baseOffset,
+                query, shape, (JPH_Mat4*)&worldTransform, &direction, (JPH_ShapeCastSettings*)&settings, &baseOffset,
                 callback: UnsafeNarrowPhaseQueryCallbacks.UnsafeCollidePointCallbackPointer,
                 userData: GetDelegatePointer(callback),
                 GetOptionalPointer(broadPhaseLayerFilter),
@@ -249,7 +249,7 @@ namespace Jolt
             AssertInitialized();
 
             return UnsafeBindings.JPH_NarrowPhaseQuery_CastShape2(
-                query, shape, &worldTransform, &direction, (JPH_ShapeCastSettings*)&settings, &baseOffset, collector,
+                query, shape, (JPH_Mat4*)&worldTransform, &direction, (JPH_ShapeCastSettings*)&settings, &baseOffset, collector,
                 callback: UnsafeNarrowPhaseQueryCallbacks.UnsafeCollidePointCallbackPointer,
                 userData: GetDelegatePointer(callback),
                 GetOptionalPointer(broadPhaseLayerFilter),
