@@ -3,7 +3,8 @@
     "references": [
         "Jolt",
         "Unity.Collections",
-        "Unity.Mathematics"
+        "Unity.Mathematics",
+        "Jolt.Native"
     ],
     "optionalUnityReferences": [
         "TestAssemblies"
