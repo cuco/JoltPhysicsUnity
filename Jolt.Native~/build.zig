@@ -1,6 +1,7 @@
 ﻿const std = @import("std");
 
 const Build = std.build;
+const builtin = @import("builtin");
 
 const Options = struct {
     enable_asserts: bool = false,
@@ -20,7 +21,59 @@ fn deterministicFpFlags(target: std.Target) []const []const u8 {
     return &.{ "-ffp-model=precise", "-ffp-contract=off" };
 }
 
-fn buildCompileFlags(allocator: std.mem.Allocator, options: Options, target: std.Target, optimize: std.builtin.OptimizeMode) ![]const []const u8 {
+fn androidTriple(cpu_arch: std.Target.Cpu.Arch) []const u8 {
+    return switch (cpu_arch) {
+        .aarch64 => "aarch64-linux-android",
+        .arm, .thumb => "arm-linux-androideabi",
+        .x86_64 => "x86_64-linux-android",
+        .x86 => "i686-linux-android",
+        else => @panic("unsupported Android CPU architecture"),
+    };
+}
+
+fn ndkHostPrebuilt() []const u8 {
+    return switch (builtin.os.tag) {
+        .windows => "windows-x86_64",
+        .linux => "linux-x86_64",
+        .macos => if (builtin.cpu.arch == .aarch64) "darwin-arm64" else "darwin-x86_64",
+        else => @panic("unsupported host OS for Android NDK cross-compile"),
+    };
+}
+
+fn configureAndroidNdk(b: *Build, lib: *Build.Step.Compile, target: std.Target) void {
+    const ndk = std.process.getEnvVarOwned(b.allocator, "ANDROID_NDK_HOME") catch
+        @panic("ANDROID_NDK_HOME must be set when cross-compiling for Android");
+    defer b.allocator.free(ndk);
+
+    const sysroot = b.fmt("{s}/toolchains/llvm/prebuilt/{s}/sysroot", .{ ndk, ndkHostPrebuilt() });
+    const triple = androidTriple(target.cpu.arch);
+
+    const api_level = std.process.getEnvVarOwned(b.allocator, "ANDROID_API_LEVEL") catch null;
+    defer if (api_level) |level| b.allocator.free(level);
+    const api = api_level orelse "21";
+
+    const libc_txt = b.fmt(
+        \\include_dir={s}/usr/include
+        \\sys_include_dir={s}/usr/include/{s}
+        \\crt_dir={s}/usr/lib/{s}/{s}
+        \\msvc_lib_dir=
+        \\kernel32_lib_dir=
+        \\gcc_dir=
+        \\
+    ,
+        .{ sysroot, sysroot, triple, sysroot, triple, api });
+
+    const wf = b.addWriteFiles();
+    const libc_file = wf.add(b.fmt("libc-{s}.txt", .{triple}), libc_txt);
+    lib.step.dependOn(&wf.step);
+    lib.setLibCFile(libc_file);
+    lib.linkLibC();
+
+    lib.addLibraryPath(.{ .path = b.fmt("{s}/usr/lib/{s}", .{ sysroot, triple }) });
+    lib.addLibraryPath(.{ .path = b.fmt("{s}/usr/lib/{s}/{s}", .{ sysroot, triple, api }) });
+}
+
+fn buildCompileFlags(allocator: std.mem.Allocator, options: Options, target: std.Target, optimize: std.builtin.OptimizeMode, is_android: bool) ![]const []const u8 {
     var list = std.ArrayList([]const u8).init(allocator);
     errdefer list.deinit();
 
@@ -45,17 +98,32 @@ fn buildCompileFlags(allocator: std.mem.Allocator, options: Options, target: std
         try list.append("-DJPH_CROSS_PLATFORM_DETERMINISTIC");
         try list.appendSlice(deterministicFpFlags(target));
     }
+    if (is_android) {
+        try list.appendSlice(&.{
+            "-D__ANDROID_API__=21",
+            "-fPIC",
+        });
+    }
 
     return try list.toOwnedSlice();
 }
 
 pub fn compile(options: Options, b: *Build, lib: *Build.Step.Compile) void {
-    lib.linkLibC();
-    lib.linkLibCpp();
+    const target = lib.target.toTarget();
+    const is_android = target.os.tag == .linux and target.abi == .android;
 
     lib.strip = lib.optimize != .Debug;
 
-    const flags = buildCompileFlags(b.allocator, options, lib.target.toTarget(), lib.optimize) catch @panic("OOM");
+    if (is_android) {
+        lib.force_pic = true;
+        configureAndroidNdk(b, lib, target);
+        lib.linkLibCpp();
+    } else {
+        lib.linkLibC();
+        lib.linkLibCpp();
+    }
+
+    const flags = buildCompileFlags(b.allocator, options, target, lib.optimize, is_android) catch @panic("OOM");
     defer b.allocator.free(flags);
 
     // add joltc sources

@@ -39,6 +39,10 @@
 
     <PropertyGroup>
         <ZigBuildOptions>-Denable_cross_platform_determinism=true</ZigBuildOptions>
+        <!-- Prefer junction without spaces (mklink /J D:\AndroidNDK "&lt;Unity NDK path&gt;") when Zig fails to parse ANDROID_NDK_HOME -->
+        <UnityAndroidNdk Condition="'$(UnityAndroidNdk)' == '' and Exists('D:\AndroidNDK')">D:\AndroidNDK</UnityAndroidNdk>
+        <UnityAndroidNdk Condition="'$(UnityAndroidNdk)' == ''">D:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\PlaybackEngines\AndroidPlayer\NDK</UnityAndroidNdk>
+        <_AndroidNdkEnv>set "ANDROID_NDK_HOME=$(UnityAndroidNdk)" &amp; set "ANDROID_API_LEVEL=21" &amp; </_AndroidNdkEnv>
     </PropertyGroup>
 
     <ItemGroup>
@@ -55,11 +59,14 @@
 
     <Target Name="Compile Jolt" AfterTargets="Build" Condition="'$(ZigExePath)' != ''">
         <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir windows-x64 -Dtarget=x86_64-windows -Doptimize=$(NativeOptimize) $(ZigBuildOptions)"/>
-        <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir macos-arm64 -Dtarget=aarch64-macos   -Doptimize=$(NativeOptimize) $(ZigBuildOptions)"/>
-        <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir linux-x64   -Dtarget=x86_64-linux   -Doptimize=$(NativeOptimize) $(ZigBuildOptions)"/>
+        <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir macos-arm64 -Dtarget=aarch64-macos -Doptimize=$(NativeOptimize) $(ZigBuildOptions)"/>
+        <Exec Command="$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir linux-x64 -Dtarget=x86_64-linux -Doptimize=$(NativeOptimize) $(ZigBuildOptions)"/>
+        <Exec Command="$(_AndroidNdkEnv)$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir android-arm64-v8a -Dtarget=aarch64-linux-android -Doptimize=$(NativeOptimize) $(ZigBuildOptions)"/>
+        <Exec Command="$(_AndroidNdkEnv)$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir android-armeabi-v7a -Dtarget=arm-linux-android -Doptimize=$(NativeOptimize) $(ZigBuildOptions)" ContinueOnError="true"/>
+        <Exec Command="$(_AndroidNdkEnv)$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir android-x86_64 -Dtarget=x86_64-linux-android -Doptimize=$(NativeOptimize) $(ZigBuildOptions)"/>
+        <Exec Command="$(_AndroidNdkEnv)$(ZigExePath) build --prefix out/$(Configuration) --prefix-lib-dir android-x86 -Dtarget=x86-linux-android -Doptimize=$(NativeOptimize) $(ZigBuildOptions)" ContinueOnError="true"/>
     </Target>
 
-    <!-- Bindings only need joltc.h; run after zig so a typical rebuild is compile → bindgen → copy. -->
     <Target Name="Generate Jolt Bindings" AfterTargets="Compile Jolt">
         <Exec WorkingDirectory="$(MSBuildProjectDirectory)"
               Command="dotnet tool run clangsharppinvokegenerator --include-directory &quot;$(ZigToolsetPath)lib/include&quot; -f lib/joltc/joltc.h -n Jolt -m UnsafeBindings -l joltc -o ../Jolt/Bindings/UnsafeBindings.g.cs @clangsharp.rsp"/>

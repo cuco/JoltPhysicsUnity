@@ -20,6 +20,23 @@ or
 dotnet build -c Release
 ```
 
+### Android (IL2CPP)
+
+Android `.so` files are cross-compiled with Zig for `arm64-v8a`, `armeabi-v7a`, `x86_64`, and `x86`. On Windows with Zig 0.11, **arm64-v8a** and **x86_64** build reliably; **armeabi-v7a** and **x86** may fail (32-bit PIC / compiler-rt); `dotnet build` continues for those ABIs via `ContinueOnError`. Set `ANDROID_NDK_HOME` to the Unity Editor NDK (same version as your Android build), for example:
+
+`D:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\PlaybackEngines\AndroidPlayer\NDK`
+
+On Windows, if Zig fails to find Bionic headers, create a junction without spaces and point `ANDROID_NDK_HOME` at it:
+
+```pwsh
+mklink /J D:\AndroidNDK "D:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\PlaybackEngines\AndroidPlayer\NDK"
+$env:ANDROID_NDK_HOME = "D:\AndroidNDK"
+$env:ANDROID_API_LEVEL = "21"
+dotnet build -c Release
+```
+
+Outputs land in `Jolt.Native/Release/android-*/libjoltc.so`. On device, Unity loads them via PluginImporter; `NativeLibrary` does not `dlopen` on `UNITY_ANDROID`.
+
 Building the native project will automatically export new C# bindings into `Jolt/Bindings`. To rebuild just the
 bindings (after changing `clangsharp.rsp` for example), use:
 
