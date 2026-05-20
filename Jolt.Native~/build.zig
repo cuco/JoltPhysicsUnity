@@ -117,6 +117,11 @@ pub fn compile(options: Options, b: *Build, lib: *Build.Step.Compile) void {
     if (is_android) {
         lib.force_pic = true;
         configureAndroidNdk(b, lib, target);
+        // Android 15+ / Google Play: 64-bit .so must be built for 16 KB page size (Unity warns if not aligned).
+        if (lib.isDynamicLibrary()) {
+            lib.link_z_max_page_size = 16384;
+            lib.link_z_common_page_size = 16384;
+        }
         lib.linkLibCpp();
     } else {
         lib.linkLibC();
