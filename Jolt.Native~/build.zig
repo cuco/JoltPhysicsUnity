@@ -1,7 +1,9 @@
-﻿const std = @import("std");
+const std = @import("std");
 
 const Build = std.build;
 const builtin = @import("builtin");
+
+const default_android_api_level = "21";
 
 const Options = struct {
     enable_asserts: bool = false,
@@ -31,26 +33,34 @@ fn androidTriple(cpu_arch: std.Target.Cpu.Arch) []const u8 {
     };
 }
 
-fn ndkHostPrebuilt() []const u8 {
+fn ndkPrebuiltExists(b: *Build, ndk: []const u8, prebuilt: []const u8) bool {
+    const path = b.fmt("{s}/toolchains/llvm/prebuilt/{s}", .{ ndk, prebuilt });
+    std.fs.accessAbsolute(path, .{}) catch return false;
+    return true;
+}
+
+fn ndkHostPrebuilt(b: *Build, ndk: []const u8) []const u8 {
     return switch (builtin.os.tag) {
         .windows => "windows-x86_64",
         .linux => "linux-x86_64",
-        .macos => if (builtin.cpu.arch == .aarch64) "darwin-arm64" else "darwin-x86_64",
+        .macos => preferred: {
+            const preferred = if (builtin.cpu.arch == .aarch64) "darwin-arm64" else "darwin-x86_64";
+            const fallback = if (builtin.cpu.arch == .aarch64) "darwin-x86_64" else "darwin-arm64";
+            if (ndkPrebuiltExists(b, ndk, preferred)) break :preferred preferred;
+            if (ndkPrebuiltExists(b, ndk, fallback)) break :preferred fallback;
+            break :preferred preferred;
+        },
         else => @panic("unsupported host OS for Android NDK cross-compile"),
     };
 }
 
-fn configureAndroidNdk(b: *Build, lib: *Build.Step.Compile, target: std.Target) void {
+fn configureAndroidNdk(b: *Build, lib: *Build.Step.Compile, target: std.Target, api: []const u8) void {
     const ndk = std.process.getEnvVarOwned(b.allocator, "ANDROID_NDK_HOME") catch
         @panic("ANDROID_NDK_HOME must be set when cross-compiling for Android");
     defer b.allocator.free(ndk);
 
-    const sysroot = b.fmt("{s}/toolchains/llvm/prebuilt/{s}/sysroot", .{ ndk, ndkHostPrebuilt() });
+    const sysroot = b.fmt("{s}/toolchains/llvm/prebuilt/{s}/sysroot", .{ ndk, ndkHostPrebuilt(b, ndk) });
     const triple = androidTriple(target.cpu.arch);
-
-    const api_level = std.process.getEnvVarOwned(b.allocator, "ANDROID_API_LEVEL") catch null;
-    defer if (api_level) |level| b.allocator.free(level);
-    const api = api_level orelse "21";
 
     const libc_txt = b.fmt(
         \\include_dir={s}/usr/include
@@ -60,8 +70,7 @@ fn configureAndroidNdk(b: *Build, lib: *Build.Step.Compile, target: std.Target) 
         \\kernel32_lib_dir=
         \\gcc_dir=
         \\
-    ,
-        .{ sysroot, sysroot, triple, sysroot, triple, api });
+    , .{ sysroot, sysroot, triple, sysroot, triple, api });
 
     const wf = b.addWriteFiles();
     const libc_file = wf.add(b.fmt("libc-{s}.txt", .{triple}), libc_txt);
@@ -69,12 +78,14 @@ fn configureAndroidNdk(b: *Build, lib: *Build.Step.Compile, target: std.Target) 
     lib.setLibCFile(libc_file);
     lib.linkLibC();
 
-    lib.addLibraryPath(.{ .path = b.fmt("{s}/usr/lib/{s}", .{ sysroot, triple }) });
+    // Keep the API-level directory first so -lc resolves to libc.so, not the
+    // unversioned libc.a that drags static bionic/GWP-ASan TLS into libjoltc.so.
     lib.addLibraryPath(.{ .path = b.fmt("{s}/usr/lib/{s}/{s}", .{ sysroot, triple, api }) });
+    lib.addLibraryPath(.{ .path = b.fmt("{s}/usr/lib/{s}", .{ sysroot, triple }) });
 }
 
-fn buildCompileFlags(allocator: std.mem.Allocator, options: Options, target: std.Target, optimize: std.builtin.OptimizeMode, is_android: bool) ![]const []const u8 {
-    var list = std.ArrayList([]const u8).init(allocator);
+fn buildCompileFlags(b: *Build, options: Options, target: std.Target, optimize: std.builtin.OptimizeMode, android_api: ?[]const u8) ![]const []const u8 {
+    var list = std.ArrayList([]const u8).init(b.allocator);
     errdefer list.deinit();
 
     try list.appendSlice(&.{
@@ -98,10 +109,12 @@ fn buildCompileFlags(allocator: std.mem.Allocator, options: Options, target: std
         try list.append("-DJPH_CROSS_PLATFORM_DETERMINISTIC");
         try list.appendSlice(deterministicFpFlags(target));
     }
-    if (is_android) {
+    if (android_api) |api| {
         try list.appendSlice(&.{
-            "-D__ANDROID_API__=21",
+            b.fmt("-D__ANDROID_API__={s}", .{api}),
             "-fPIC",
+            "-fno-sanitize=all",
+            "-ftls-model=global-dynamic",
         });
     }
 
@@ -111,12 +124,15 @@ fn buildCompileFlags(allocator: std.mem.Allocator, options: Options, target: std
 pub fn compile(options: Options, b: *Build, lib: *Build.Step.Compile) void {
     const target = lib.target.toTarget();
     const is_android = target.os.tag == .linux and target.abi == .android;
+    const android_api_level_owned = if (is_android) std.process.getEnvVarOwned(b.allocator, "ANDROID_API_LEVEL") catch null else null;
+    defer if (android_api_level_owned) |level| b.allocator.free(level);
+    const android_api = android_api_level_owned orelse default_android_api_level;
 
     lib.strip = lib.optimize != .Debug;
 
     if (is_android) {
         lib.force_pic = true;
-        configureAndroidNdk(b, lib, target);
+        configureAndroidNdk(b, lib, target, android_api);
         // Android 15+ / Google Play: 64-bit .so must be built for 16 KB page size (Unity warns if not aligned).
         if (lib.isDynamicLibrary()) {
             lib.link_z_max_page_size = 16384;
@@ -128,29 +144,22 @@ pub fn compile(options: Options, b: *Build, lib: *Build.Step.Compile) void {
         lib.linkLibCpp();
     }
 
-    const flags = buildCompileFlags(b.allocator, options, target, lib.optimize, is_android) catch @panic("OOM");
+    const flags = buildCompileFlags(b, options, target, lib.optimize, if (is_android) android_api else null) catch @panic("OOM");
     defer b.allocator.free(flags);
 
     // add joltc sources
 
     const joltc_dir = "lib/joltc/";
 
-    lib.addIncludePath(.{
-        .path = joltc_dir
-    });
+    lib.addIncludePath(.{ .path = joltc_dir });
 
-    lib.addCSourceFiles(&.{
-        joltc_dir ++ "joltc.cpp",
-        joltc_dir ++ "joltc_assert.cpp"
-    }, flags);
+    lib.addCSourceFiles(&.{ joltc_dir ++ "joltc.cpp", joltc_dir ++ "joltc_assert.cpp" }, flags);
 
     // add jolt sources
 
     const jolt_dir = "lib/jolt/";
 
-    lib.addIncludePath(.{
-        .path = jolt_dir
-    });
+    lib.addIncludePath(.{ .path = jolt_dir });
 
     lib.addCSourceFiles(&.{
         jolt_dir ++ "Jolt/AABBTree/AABBTreeBuilder.cpp",
@@ -295,7 +304,7 @@ pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const options = Options {
+    const options = Options{
         .use_double_precision = b.option(bool, "use_double_precision", "use double precision") orelse false,
         .enable_asserts = b.option(bool, "enable_asserts", "enable asserts") orelse false,
         .enable_debug_renderer = b.option(bool, "enable_debug_renderer", "enable debug renderer") orelse false,
