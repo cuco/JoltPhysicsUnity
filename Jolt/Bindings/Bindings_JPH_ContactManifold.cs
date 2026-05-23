@@ -55,7 +55,7 @@ namespace Jolt
             AssertInitialized();
 
             rvec3 result;
-            UnsafeBindings.JPH_ContactManifold_GetWorldSpaceContactPointOn1(manifold, index, &result);
+            UnsafeBindings.JPH_ContactManifold_GetWorldSpaceContactPointOn2(manifold, index, &result);
             return result;
         }
     }

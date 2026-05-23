@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using AOT;
-using Unity.Mathematics;
 using UnityEngine;
 
 namespace Jolt
@@ -70,17 +69,26 @@ namespace Jolt
             OnContactPersisted = GetDelegatePointer((UnsafeContactPersisted) UnsafeContactPersistedCallback),
         };
 
+        private static Body WrapBorrowedBody(JPH_Body* bodyPtr) =>
+            new Body { Handle = new NativeHandle<JPH_Body>(bodyPtr) };
+
+        private static ContactManifold WrapBorrowedManifold(JPH_ContactManifold* manifoldPtr) =>
+            new ContactManifold { Handle = new NativeHandle<JPH_ContactManifold>(manifoldPtr) };
+
+        private static ContactSettings WrapBorrowedSettings(JPH_ContactSettings* settingsPtr) =>
+            new ContactSettings { Handle = new NativeHandle<JPH_ContactSettings>(settingsPtr) };
+
         /// <summary>
         /// Unsafe static delegate for OnContactValidate.
         /// </summary>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
-        private delegate ValidateResult UnsafeContactValidate(IntPtr udata, JPH_Body* bodyA, JPH_Body* bodyB, double3* offset, CollideShapeResult* result);
+        private delegate ValidateResult UnsafeContactValidate(IntPtr udata, JPH_Body* bodyA, JPH_Body* bodyB, rvec3* offset, CollideShapeResult* result);
 
         /// <summary>
         /// Unsafe static delegate for OnContactAdded.
         /// </summary>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
-        private delegate void UnsafeContactAdded(IntPtr udata, JPH_Body* bodyA, JPH_Body* bodyB);
+        private delegate void UnsafeContactAdded(IntPtr udata, JPH_Body* bodyA, JPH_Body* bodyB, JPH_ContactManifold* manifold, JPH_ContactSettings* settings);
 
         /// <summary>
         /// Unsafe static delegate for OnContactRemoved.
@@ -92,17 +100,21 @@ namespace Jolt
         /// Unsafe static delegate for OnContactPersisted.
         /// </summary>
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
-        private delegate void UnsafeContactPersisted(IntPtr udata, JPH_Body* bodyA, JPH_Body* bodyB);
+        private delegate void UnsafeContactPersisted(IntPtr udata, JPH_Body* bodyA, JPH_Body* bodyB, JPH_ContactManifold* manifold, JPH_ContactSettings* settings);
 
         /// <summary>
         /// Unsafe static implementation for OnContactValidate.
         /// </summary>
         [MonoPInvokeCallback(typeof(UnsafeContactValidate))]
-        private static ValidateResult UnsafeContactValidateCallback(IntPtr udata, JPH_Body* bodyA, JPH_Body* bodyB, double3* offset, CollideShapeResult* result)
+        private static ValidateResult UnsafeContactValidateCallback(IntPtr udata, JPH_Body* bodyA, JPH_Body* bodyB, rvec3* offset, CollideShapeResult* result)
         {
             try
             {
-                return ManagedReference.Deref<IContactListener>(udata).OnContactValidate(); // TODO forward args
+                return ManagedReference.Deref<IContactListener>(udata).OnContactValidate(
+                    WrapBorrowedBody(bodyA),
+                    WrapBorrowedBody(bodyB),
+                    *offset,
+                    *result);
             }
             catch (Exception e)
             {
@@ -116,11 +128,15 @@ namespace Jolt
         /// Unsafe static implementation for OnContactAdded.
         /// </summary>
         [MonoPInvokeCallback(typeof(UnsafeContactAdded))]
-        private static void UnsafeContactAddedCallback(IntPtr udata, JPH_Body* bodyA, JPH_Body* bodyB)
+        private static void UnsafeContactAddedCallback(IntPtr udata, JPH_Body* bodyA, JPH_Body* bodyB, JPH_ContactManifold* manifold, JPH_ContactSettings* settings)
         {
             try
             {
-                ManagedReference.Deref<IContactListener>(udata).OnContactAdded(); // TODO forward args
+                ManagedReference.Deref<IContactListener>(udata).OnContactAdded(
+                    WrapBorrowedBody(bodyA),
+                    WrapBorrowedBody(bodyB),
+                    WrapBorrowedManifold(manifold),
+                    WrapBorrowedSettings(settings));
             }
             catch (Exception e)
             {
@@ -136,7 +152,7 @@ namespace Jolt
         {
             try
             {
-                ManagedReference.Deref<IContactListener>(udata).OnContactRemoved(); // TODO forward args
+                ManagedReference.Deref<IContactListener>(udata).OnContactRemoved(*pair);
             }
             catch (Exception e)
             {
@@ -148,11 +164,15 @@ namespace Jolt
         /// Unsafe static implementation for OnContactPersisted.
         /// </summary>
         [MonoPInvokeCallback(typeof(UnsafeContactPersisted))]
-        private static void UnsafeContactPersistedCallback(IntPtr udata, JPH_Body* bodyA, JPH_Body* bodyB) // TODO forward args
+        private static void UnsafeContactPersistedCallback(IntPtr udata, JPH_Body* bodyA, JPH_Body* bodyB, JPH_ContactManifold* manifold, JPH_ContactSettings* settings)
         {
             try
             {
-                ManagedReference.Deref<IContactListener>(udata).OnContactPersisted();
+                ManagedReference.Deref<IContactListener>(udata).OnContactPersisted(
+                    WrapBorrowedBody(bodyA),
+                    WrapBorrowedBody(bodyB),
+                    WrapBorrowedManifold(manifold),
+                    WrapBorrowedSettings(settings));
             }
             catch (Exception e)
             {

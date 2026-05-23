@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using Unity.Mathematics;
+using UnityEngine;
 
 namespace Jolt.Samples
 {
@@ -49,26 +50,32 @@ namespace Jolt.Samples
     /// </summary>
     public class SampleContactListener : IContactListener
     {
-        public ValidateResult OnContactValidate()
+        public ValidateResult OnContactValidate(Body body1, Body body2, rvec3 baseOffset, CollideShapeResult collisionResult)
         {
-            Debug.Log("OnContactValidate");
+            Debug.Log($"OnContactValidate(Body1: {body1.GetID()}, Body2: {body2.GetID()}, BaseOffset: {baseOffset}, PenetrationDepth: {collisionResult.PenetrationDepth})");
 
             return ValidateResult.AcceptAllContactsForThisBodyPair;
         }
 
-        public void OnContactAdded()
+        public void OnContactAdded(Body body1, Body body2, ContactManifold manifold, ContactSettings settings)
         {
-            Debug.Log("OnContactAdded");
+            var normal = manifold.GetWorldSpaceNormal();
+            var point = manifold.GetPointCount() > 0 ? manifold.GetWorldSpaceContactPointOn2(0) : default;
+
+            Debug.Log($"OnContactAdded(Body1: {body1.GetID()}, Body2: {body2.GetID()}, UserData1: {body1.GetUserData()}, UserData2: {body2.GetUserData()}, IsSensor: {settings.IsSensor}, Normal: {normal}, Point: {point})");
         }
 
-        public void OnContactPersisted()
+        public void OnContactPersisted(Body body1, Body body2, ContactManifold manifold, ContactSettings settings)
         {
-            Debug.Log("OnContactPersisted");
+            var normal = manifold.GetWorldSpaceNormal();
+            var point = manifold.GetPointCount() > 0 ? manifold.GetWorldSpaceContactPointOn2(0) : default;
+
+            Debug.Log($"OnContactPersisted(Body1: {body1.GetID()}, Body2: {body2.GetID()}, IsSensor: {settings.IsSensor}, Normal: {normal}, Point: {point})");
         }
 
-        public void OnContactRemoved()
+        public void OnContactRemoved(SubShapeIDPair subShapePair)
         {
-            Debug.Log("OnContactRemoved");
+            Debug.Log($"OnContactRemoved(Body1: {subShapePair.Body1}, Body2: {subShapePair.Body2})");
         }
     }
 }
