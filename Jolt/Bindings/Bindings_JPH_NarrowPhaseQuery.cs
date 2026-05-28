@@ -2,7 +2,6 @@
 using System.Runtime.InteropServices;
 using AOT;
 using Unity.Collections.LowLevel.Unsafe;
-using Unity.Mathematics;
 using UnityEngine;
 
 namespace Jolt
@@ -173,7 +172,7 @@ namespace Jolt
 
             return UnsafeBindings.JPH_NarrowPhaseQuery_CollideShape(
                 query, shape, &scale, (JPH_Mat4*)&com, (JPH_CollideShapeSettings*)&settings, &offset,
-                callback: UnsafeNarrowPhaseQueryCallbacks.UnsafeCollidePointCallbackPointer,
+                callback: UnsafeNarrowPhaseQueryCallbacks.UnsafeCollideShapeCallbackPointer,
                 userData: GetDelegatePointer(callback),
                 GetOptionalPointer(broadPhaseLayerFilter),
                 GetOptionalPointer(objectLayerFilter),
@@ -199,7 +198,7 @@ namespace Jolt
 
             return UnsafeBindings.JPH_NarrowPhaseQuery_CollideShape2(
                 query, shape, &scale, (JPH_Mat4*)&com, (JPH_CollideShapeSettings*)&settings, &offset, collector,
-                callback: UnsafeNarrowPhaseQueryCallbacks.UnsafeCollidePointCallbackPointer,
+                callback: UnsafeNarrowPhaseQueryCallbacks.UnsafeCollideShapeCallbackPointer,
                 userData: GetDelegatePointer(callback),
                 GetOptionalPointer(broadPhaseLayerFilter),
                 GetOptionalPointer(objectLayerFilter),
@@ -225,7 +224,7 @@ namespace Jolt
 
             return UnsafeBindings.JPH_NarrowPhaseQuery_CastShape(
                 query, shape, (JPH_Mat4*)&worldTransform, &direction, (JPH_ShapeCastSettings*)&settings, &baseOffset,
-                callback: UnsafeNarrowPhaseQueryCallbacks.UnsafeCollidePointCallbackPointer,
+                callback: UnsafeNarrowPhaseQueryCallbacks.UnsafeCollideShapeCallbackPointer,
                 userData: GetDelegatePointer(callback),
                 GetOptionalPointer(broadPhaseLayerFilter),
                 GetOptionalPointer(objectLayerFilter),
@@ -251,7 +250,7 @@ namespace Jolt
 
             return UnsafeBindings.JPH_NarrowPhaseQuery_CastShape2(
                 query, shape, (JPH_Mat4*)&worldTransform, &direction, (JPH_ShapeCastSettings*)&settings, &baseOffset, collector,
-                callback: UnsafeNarrowPhaseQueryCallbacks.UnsafeCollidePointCallbackPointer,
+                callback: UnsafeNarrowPhaseQueryCallbacks.UnsafeCollideShapeCallbackPointer,
                 userData: GetDelegatePointer(callback),
                 GetOptionalPointer(broadPhaseLayerFilter),
                 GetOptionalPointer(objectLayerFilter),
